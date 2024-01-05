@@ -5,3 +5,4 @@ dependencies:
   - geopandas
   - panel
   - folium
+  - jupyter_panel_proxy
