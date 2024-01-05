@@ -1,4 +1,6 @@
 name: lordy
+channels:
+- pyviz
 dependencies:
   - numpy
   - pandas
