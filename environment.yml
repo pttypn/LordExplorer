@@ -1,0 +1,7 @@
+name: lordy
+dependencies:
+  - numpy
+  - pandas
+  - geopandas
+  - panel
+  - folium
