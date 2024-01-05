@@ -236,7 +236,7 @@ def getcoords(searchaddy, geodict):
 loadptsbutton = pn.widgets.Button(name = 'Load pts')
 loadptsbutton.on_click(loadpoints)
 m = folium.Map(location=[41.82, -71.4], zoom_start=11,tiles="Cartodb Positron")
-folium_pane = pn.pane.plot.Folium(m, height=400)
+folium_pane = pn.pane.plot.Folium(m,sizing_mode='stretch_both')
 maptab = pn.Column(loadptsbutton,folium_pane, name = 'Map')
 
 #
