@@ -102,12 +102,14 @@ def updateDF(event):
     updatedDF = searchproplocation(updatedDF,locationsearch.value)
     updatedDF = searchowneradd(updatedDF,owneraddresssearch.value)
     df_widget.value = updatedDF
+    updatedDF.to_csv('tempprop.csv')
     return
     
 def resetDF(event):
     df_widget.value = df
     citycheckboxes1.value = ['all']
     citycheckboxes2.value = []
+    presetselect.value = ''
     owneraddresssearch.value = ''
     ownersearch.value = ''
     locationsearch.value = ''
@@ -119,8 +121,10 @@ df_widget = pn.widgets.Tabulator(df,frozen_columns=['Location'],show_index=False
 
 updatebutton = pn.widgets.Button(name='Update')
 resetbutton = pn.widgets.Button(name='Reset')
-downloadbutton = pn.widgets.Button(name='Download')
+#downloadbutton = pn.widgets.Button(name='Download')
+propcsvname = pn.widgets.TextInput(value = 'properties.csv',name = 'Filename')
 
+downloadbutton = pn.widgets.FileDownload('tempprop.csv', filename=propcsvname.value,auto=False)
 
 ownersearch = pn.widgets.TextInput(value = '',name = 'Search by Owner')
 
@@ -135,7 +139,8 @@ ownertypeselect = pn.widgets.Select(name='Filter by owner type',
                     value='all', options=['all','State','NonState'])
 presetselect = pn.widgets.Select(name = 'Presets',value = '',options = ['',*[key for key in EP.replacedict]])
 
-accordionrow = pn.Row(cityselect,ownertypeselect,presetselect)
+#extra in accordion row ownertypeselect
+accordionrow = pn.Row(cityselect,presetselect)
 
 locationsearch = pn.widgets.TextInput(value = '',name = 'Search by Property Location')
 owneraddresssearch = pn.widgets.TextInput(value = '',name = 'Search by Owner Address')
@@ -149,7 +154,7 @@ resetbutton.on_click(resetDF)
 
 propertytab = pn.Column(accordionrow,
               pn.Row(ownersearch,locationsearch,owneraddresssearch),
-              pn.Row(updatebutton, resetbutton, downloadbutton),
+              pn.Row(updatebutton, resetbutton,propcsvname,downloadbutton),
               df_widget,
              debug, name = 'Properties')
 #
@@ -169,20 +174,31 @@ def MakeSummary(inputdf):
         return grandTotal.loc[ownerlist]
     else:
         return cityTotal.loc[ownerlist]
-def sumbuttonclick(event):
+def updatesummarytab(event):
     sum_df.value = MakeSummary(df_widget.value)
+    sum_df.value.to_csv('tempcsv.csv')
     
     return
     
 sum_df = pn.widgets.Tabulator(grandTotal,width = 1000,
                                  formatters=bokeh_formatters,page_size = 20)
 
-summarizebutton = pn.widgets.Button(name = "Summarize")
+summarizebutton = pn.widgets.Button(name = "Update")
 summarizecheck = pn.widgets.Checkbox(value = True,name = 'Totals')
 grandtotalcheck = pn.widgets.Checkbox(value = False,name = 'GrandTotal')
 
-summarizebutton.on_click(sumbuttonclick)
-summarytab = pn.Column(summarizebutton,summarizecheck,grandtotalcheck,sum_df,name = 'Summaries')
+    
+#fileydown = pn.widgets.FileDownload(file='summarybyowner.csv', filename='summarybyowner.csv')
+byownercsvname = pn.widgets.TextInput(value = 'GroupByOwner.csv',name = 'Filename')
+downbutton = pn.widgets.FileDownload('tempcsv.csv', filename=byownercsvname.value,auto=False)
+
+downloadcol = pn.Column(byownercsvname,downbutton)
+sumsearchcol = pn.Column(summarizebutton,summarizecheck,grandtotalcheck)
+sumtabtopRow = pn.Row(sumsearchcol, downloadcol)
+
+summarizebutton.on_click(updatesummarytab)
+
+summarytab = pn.Column(sumtabtopRow,sum_df,name = 'Group by owner')
 
 #
 #
@@ -195,10 +211,10 @@ import geopandas
 from shapely.geometry import Point
 
 def loadpoints(event):
+    maxpoints = 1000
     newdf = df_widget.value
-    if len(newdf)>300:
-        newdf = newdf[:300]
-    #pointindex = df_widget.index.to_list
+    if len(newdf) > maxpoints:
+        newdf = newdf[:maxpoints]
     with open(geodictionarypath, 'rb') as f:
         geodictionary = pickle.load(f)
     searchterms = getsearchterms(newdf) #gets indices for points
