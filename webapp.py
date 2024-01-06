@@ -211,29 +211,45 @@ import geopandas
 from shapely.geometry import Point
 
 def loadpoints(event):
-    maxpoints = 1000
+    maxpoints = 500
     newdf = df_widget.value
+
     if len(newdf) > maxpoints:
         newdf = newdf[:maxpoints]
     with open(geodictionarypath, 'rb') as f:
         geodictionary = pickle.load(f)
+        
     searchterms = getsearchterms(newdf) #gets indices for points
     coords = searchterms.apply(getcoords, geodict = geodictionary)
     newdf['Coords'] = coords.apply(Point)
+    newdf = newdf.loc[newdf["Coords"]!=(Point(np.nan,np.nan))]
+
     newdf = geopandas.GeoDataFrame(newdf,geometry = "Coords",crs = "EPSG:4326")
     
+    #Make new map
     n = folium.Map(location=[41.82, -71.4], zoom_start=11,tiles="Cartodb Positron")
-    #folium.Map(newdf).add_to(m)
-    folium.GeoJson(newdf,na='drop',
-                   marker=folium.CircleMarker(
-                       radius=4, fill_color="red", fill_opacity=0.4, color="black", weight=1)).add_to(n)#folium.GeoJsonTooltip(fields=["Location"]),
-                        #popup=folium.GeoJsonPopup(fields=["Location"])
-                  
+    #add points to map
+    for _, r in newdf.iterrows():
+        georow = geopandas.GeoSeries(r["Coords"])
+        geo_j = georow.to_json()
+        geo_j = folium.GeoJson(data=geo_j,
+                    marker=folium.CircleMarker(
+                        radius=4,
+                        fill_color="red",
+                        fill_opacity=0.4,
+                        color="black",
+                        weight=1,drop=True
+                    ), 
+                    drop=True,style_function=lambda x: {"fillColor": "orange"})
+        folium.Popup(r["Location"]).add_to(geo_j)
+        geo_j.add_to(n)
+    #add newmap to folium pane
     folium_pane.object = n
-    n.save('map.html')
-    #dfgeoseries = geopandas.GeoSeries(coords)
-    #df_widget.value =  newdf
-    #Then load the layer into folium
+    #save the html
+    folium_pane.object.save('map.html')
+ #   dfgeoseries = geopandas.GeoSeries(coords)
+ #   df_widget.value =  newdf
+ #   Then load the layer into folium
 
 def getsearchterms(inputdf):
     """returns searchaddress, which can be used with geodict to
