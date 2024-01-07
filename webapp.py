@@ -6,7 +6,8 @@ import pickle
 import ExplorePickle as EP
 pn.extension('tabulator')
 
-
+#with open(pickledir.format('EP.pkl')) as f:
+#    EP = f.read()
 from bokeh.models.widgets.tables import DateFormatter
 bokeh_formatters = {
     'LastSale': DateFormatter(format= "%d %b %Y"),
@@ -22,7 +23,7 @@ OwnerNamePresetDir = pickledir.format('OwnerNamePresets23-12-22.pkl')
 geodictionarypath = pickledir.format("geodict23-12-22.pkl")
 
 showcolumns = ['Location','City','Description','Style','Bedrooms','Owner','Owner2','Owner3',
-               'OwnerAdd','OwnerAdd2','OwnerAdd3','Assessment','LastSale']
+               'OwnerAdd','OwnerAdd2','OwnerAdd3']#,'Assessment','LastSale']
 tablewidths = {'Location':150,'Description':100,'Style':100,'Bedrooms':70,'Owner':150,'Owner2':100,'Owner3':100,
                'OwnerAdd':150,'OwnerAdd2':100,'OwnerAdd3':100,'Assessment':100,'LastSale':100}
 df = df[showcolumns]
@@ -159,41 +160,44 @@ propertytab = pn.Column(accordionrow,
              debug, name = 'Properties')
 #
 #
-#Summary Tab
+#Ownergroup Tab
+#Groups the properties in the properties tab by owner
 #
-#
-def MakeSummary(inputdf):
+def updatesummarytab(event):
+    sum_df.value = groupOwners(df_widget.value)
+    sum_df.value.to_csv('tempcsv.csv')
+    return
+    
+def groupOwners(inputdf):
     """Takes owner values of the main dataframe,
     and searches in the summary dataframe for those owners"""
     ownerlist = inputdf['Owner'].unique()
-    if summarizecheck.value == True:
+    if showtotalscheck.value == True:  
         if grandtotalcheck.value == True:
             return  grandTotal.loc[ownerlist].groupby('City').sum()
         else:
             return grandTotal.loc[ownerlist]
         return grandTotal.loc[ownerlist]
-    else:
-        return cityTotal.loc[ownerlist]
-def updatesummarytab(event):
-    sum_df.value = MakeSummary(df_widget.value)
-    sum_df.value.to_csv('tempcsv.csv')
-    
-    return
-    
-sum_df = pn.widgets.Tabulator(grandTotal,width = 1000,
+    else: #show city totals
+        if grandtotalcheck.value == True:
+            return  grandTotal.loc[ownerlist].groupby('City').sum()
+        else:
+            return cityTotal.loc[ownerlist]
+
+sum_df = pn.widgets.Tabulator(pd.DataFrame(),width = 1000,
                                  formatters=bokeh_formatters,page_size = 20)
 
 summarizebutton = pn.widgets.Button(name = "Update")
-summarizecheck = pn.widgets.Checkbox(value = True,name = 'Totals')
-grandtotalcheck = pn.widgets.Checkbox(value = False,name = 'GrandTotal')
+showtotalscheck = pn.widgets.Checkbox(value = False,name = 'Show totals')
+grandtotalcheck = pn.widgets.Checkbox(value = False,name = 'Grand Total')
 
     
 #fileydown = pn.widgets.FileDownload(file='summarybyowner.csv', filename='summarybyowner.csv')
 byownercsvname = pn.widgets.TextInput(value = 'GroupByOwner.csv',name = 'Filename')
-downbutton = pn.widgets.FileDownload('tempcsv.csv', filename=byownercsvname.value,auto=False)
+downbutton = pn.widgets.FileDownload('tempcsv.csv', filename=byownercsvname.value,auto=True)
 
 downloadcol = pn.Column(byownercsvname,downbutton)
-sumsearchcol = pn.Column(summarizebutton,summarizecheck,grandtotalcheck)
+sumsearchcol = pn.Column(summarizebutton,showtotalscheck,grandtotalcheck)
 sumtabtopRow = pn.Row(sumsearchcol, downloadcol)
 
 summarizebutton.on_click(updatesummarytab)
@@ -211,25 +215,32 @@ import geopandas
 from shapely.geometry import Point
 
 def loadpoints(event):
-    maxpoints = 500
-    newdf = df_widget.value
+    maxpoints = maxpointslider.value
+    wdf = df_widget.value #working dataframe
 
-    if len(newdf) > maxpoints:
-        newdf = newdf[:maxpoints]
+    #truncate if there's more points than the max
+    if len(wdf) > maxpoints:
+        wdf = wdf[:maxpoints]
+
+    #This section makes a geodataframe to be used with folium
+    #Load geodictionary pickle, which has formatted locations as keys
+    #and coordinates in wgs 84 for values
     with open(geodictionarypath, 'rb') as f:
         geodictionary = pickle.load(f)
-        
-    searchterms = getsearchterms(newdf) #gets indices for points
-    coords = searchterms.apply(getcoords, geodict = geodictionary)
-    newdf['Coords'] = coords.apply(Point)
-    newdf = newdf.loc[newdf["Coords"]!=(Point(np.nan,np.nan))]
+    #This lambda formats a row into a key for the geodictionary
+    getlocations = lambda df:df['Location']+', '+df['City'].replace(EP.citynamedict) +', RI, '
+    #keys used to find coordinates for each row
+    locationkeys = getlocations(wdf) #gets indices for points
+    coords = locationkeys.apply(getcoords, geodict = geodictionary)
+    wdf['Coords'] = coords.apply(Point)
+    wdf = wdf.loc[wdf["Coords"]!=(Point(np.nan,np.nan))]
 
-    newdf = geopandas.GeoDataFrame(newdf,geometry = "Coords",crs = "EPSG:4326")
+    wdf = geopandas.GeoDataFrame(wdf,geometry = "Coords",crs = "EPSG:4326")
     
-    #Make new map
+    #Make new map with folium
     n = folium.Map(location=[41.82, -71.4], zoom_start=11,tiles="Cartodb Positron")
-    #add points to map
-    for _, r in newdf.iterrows():
+    #add points to map by iterating through the working dataframe
+    for _, r in wdf.iterrows():
         georow = geopandas.GeoSeries(r["Coords"])
         geo_j = georow.to_json()
         geo_j = folium.GeoJson(data=geo_j,
@@ -247,36 +258,31 @@ def loadpoints(event):
     folium_pane.object = n
     #save the html
     folium_pane.object.save('map.html')
- #   dfgeoseries = geopandas.GeoSeries(coords)
- #   df_widget.value =  newdf
- #   Then load the layer into folium
 
-def getsearchterms(inputdf):
-    """returns searchaddress, which can be used with geodict to
-    get coords"""
-    searchterms = inputdf['Location']+', '+inputdf['City'].replace(EP.citynamedict) +', RI, '
-    return searchterms
     
 def getcoords(searchaddy, geodict):
-    """Takes a search term and returns coordinate points"""
+    """Takes a  and returns coordinate points"""
     try:
         return geodict[searchaddy]
     except:
         print(searchaddy)
         return (np.nan,np.nan)    
         
+maxpointslider = pn.widgets.DiscreteSlider(name = "Max number of points",options = [i*100 for i in range(1,10)],value = 300)
 
-loadptsbutton = pn.widgets.Button(name = 'Load pts')
+loadptsbutton = pn.widgets.Button(name = 'Update Map')
 loadptsbutton.on_click(loadpoints)
-m = folium.Map(location=[41.82, -71.4], zoom_start=11,tiles="Cartodb Positron")
-downmapbutton =pn.widgets.FileDownload('map.html', filename='map.html',auto=False)
+downmapbutton =pn.widgets.FileDownload('map.html', filename='map.html',auto=True)
+mapbuttonrow = pn.Row(loadptsbutton,downmapbutton,maxpointslider)
 
+#make the map
+m = folium.Map(location=[41.82, -71.4], zoom_start=11,tiles="Cartodb Positron")
 folium_pane = pn.pane.plot.Folium(m,sizing_mode='stretch_both')
-mapbuttonrow = pn.Row(loadptsbutton,downmapbutton)
+
+
 maptab = pn.Column(mapbuttonrow,folium_pane, name = 'Map')
 
 #
 #
 #
 tabby = pn.Tabs(propertytab,summarytab,maptab).servable()
-
