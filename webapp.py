@@ -126,7 +126,7 @@ resetbutton = pn.widgets.Button(name='Reset')
 #downloadbutton = pn.widgets.Button(name='Download')
 propcsvname = pn.widgets.TextInput(value = 'properties.csv',name = 'Filename')
 
-downloadbutton = pn.widgets.FileDownload('tempprop.csv', filename=propcsvname.value,auto=False)
+downloadbutton = pn.widgets.FileDownload('tempprop.csv', filename=propcsvname.value,auto=True)
 
 ownersearch = pn.widgets.TextInput(value = '',name = 'Search by Owner')
 searchallownerscheck = pn.widgets.Checkbox(value = True,name = "search all owner columns")
@@ -160,7 +160,7 @@ propertytab = pn.Column(accordionrow,
                      locationsearch,owneraddresssearch),
               pn.Row(updatebutton, resetbutton,propcsvname,downloadbutton),
               df_widget,
-             debug, name = 'Properties')
+             debug, name = 'Parcel Search')
 #
 #
 #Ownergroup Tab
@@ -204,8 +204,9 @@ sumsearchcol = pn.Column(summarizebutton,showtotalscheck,grandtotalcheck)
 sumtabtopRow = pn.Row(sumsearchcol, downloadcol)
 
 summarizebutton.on_click(updatesummarytab)
+groupexplanation = pn.widgets.StaticText(name='',value="Update button groups the parcels in the first tab (Parcel Search). Make sure to update before downloading")
 
-summarytab = pn.Column(sumtabtopRow,sum_df,name = 'Group by owner')
+summarytab = pn.Column(sumtabtopRow,sum_df,groupexplanation,name = 'Group by owner')
 
 #
 #
@@ -219,7 +220,7 @@ from shapely.geometry import Point
 
 def loadpoints(event):
     maxpoints = maxpointslider.value
-    wdf = df_widget.value #working dataframe
+    wdf = df_widget.value #working dataframe from main tab
 
     #truncate if there's more points than the max
     if len(wdf) > maxpoints:
@@ -248,7 +249,7 @@ def loadpoints(event):
         geo_j = georow.to_json()
         geo_j = folium.GeoJson(data=geo_j,
                     marker=folium.CircleMarker(
-                        radius=4,
+                        radius=6,
                         fill_color="red",
                         fill_opacity=0.4,
                         color="black",
@@ -282,8 +283,9 @@ mapbuttonrow = pn.Row(loadptsbutton,downmapbutton,maxpointslider)
 m = folium.Map(location=[41.82, -71.4], zoom_start=11,tiles="Cartodb Positron")
 folium_pane = pn.pane.plot.Folium(m,sizing_mode='stretch_both')
 
+mapexplanation = pn.widgets.StaticText(name='',value="Update button maps the parcels in the first tab (Parcel Search). Make sure to update before downloading the html of the map")
 
-maptab = pn.Column(mapbuttonrow,folium_pane, name = 'Map')
+maptab = pn.Column(mapbuttonrow,folium_pane,mapexplanation, name = 'Map Parcels')
 
 #
 #
