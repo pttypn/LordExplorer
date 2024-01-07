@@ -6,13 +6,10 @@ import pickle
 import ExplorePickle as EP
 pn.extension('tabulator')
 
-#with open(pickledir.format('EP.pkl')) as f:
-#    EP = f.read()
 from bokeh.models.widgets.tables import DateFormatter
 bokeh_formatters = {
     'LastSale': DateFormatter(format= "%d %b %Y"),
 }
-#np.random.seed(7)
 
 
 pickledir = 'pickles/{0}'
@@ -35,7 +32,10 @@ df = df[showcolumns]
 def searchowners(df,searchstring,searchallowners = True):
     #Search by Owners
     #returns dataframe
-    ownercolumns = ['Owner','Owner2','Owner3']
+    if searchallownerscheck.value == True:
+        ownercolumns = ['Owner','Owner2','Owner3']
+    else: 
+        ownercolumns = ['Owner']
     searchresult = []
     for column in ownercolumns:
         searchresult.append(df.loc[df[column].str.contains('(?i){0}'.format(searchstring))])
@@ -90,6 +90,7 @@ def updateDF(event):
         #updatedDharryharryF = searchowners(updatedDF,searchterm)
         df_widget.value = updatedDF#.reset_index(drop = False)
         df_widget
+        ownersearch.value = EP.replacedict[presetselect.value]
         return
     cityvalues = citycheckboxes1.value + citycheckboxes2.value #which cities to search
     if cityvalues[0] == 'all':
@@ -128,6 +129,7 @@ propcsvname = pn.widgets.TextInput(value = 'properties.csv',name = 'Filename')
 downloadbutton = pn.widgets.FileDownload('tempprop.csv', filename=propcsvname.value,auto=False)
 
 ownersearch = pn.widgets.TextInput(value = '',name = 'Search by Owner')
+searchallownerscheck = pn.widgets.Checkbox(value = True,name = "search all owner columns")
 
 citycheckboxes1 = pn.widgets.CheckBoxGroup(
     value=['all'], options=['all',*[key for key in EP.dbtype.keys()][:17]])
@@ -154,7 +156,8 @@ updatebutton.on_click(updateDF)
 resetbutton.on_click(resetDF)
 
 propertytab = pn.Column(accordionrow,
-              pn.Row(ownersearch,locationsearch,owneraddresssearch),
+              pn.Row(pn.Column(ownersearch,searchallownerscheck),
+                     locationsearch,owneraddresssearch),
               pn.Row(updatebutton, resetbutton,propcsvname,downloadbutton),
               df_widget,
              debug, name = 'Properties')
