@@ -18,7 +18,7 @@ grandTotal = pd.read_pickle(pickledir.format('GrandTotals23-12-22.pkl'))
 cityTotal = pd.read_pickle(pickledir.format('CityTotals23-12-22.pkl'))
 OwnerNamePresetDir = pickledir.format('OwnerNamePresets23-12-22.pkl')
 geodictionarypath = pickledir.format("geodict23-12-22.pkl")
-
+tempdir = 'temp/{0}'
 showcolumns = ['Location','City','Description','Style','Bedrooms','Owner','Owner2','Owner3',
                'OwnerAdd','OwnerAdd2','OwnerAdd3']#,'Assessment','LastSale']
 tablewidths = {'Location':150,'Description':100,'Style':100,'Bedrooms':70,'Owner':150,'Owner2':100,'Owner3':100,
@@ -78,6 +78,7 @@ def searchowneradd(df,searchstring):
 #        return searchresult
         
 def updateDF(event):
+    savepropcsv = lambda : updatedDF.to_csv(tempdir.format('tempprop.csv'))
     print('hey')
     updatedDF = df
     #ownercolumns = ['Owner','Owner2','Owner3']
@@ -91,6 +92,7 @@ def updateDF(event):
         df_widget.value = updatedDF#.reset_index(drop = False)
         df_widget
         ownersearch.value = EP.replacedict[presetselect.value]
+        savepropcsv()
         return
     cityvalues = citycheckboxes1.value + citycheckboxes2.value #which cities to search
     if cityvalues[0] == 'all':
@@ -104,7 +106,7 @@ def updateDF(event):
     updatedDF = searchproplocation(updatedDF,locationsearch.value)
     updatedDF = searchowneradd(updatedDF,owneraddresssearch.value)
     df_widget.value = updatedDF
-    updatedDF.to_csv('tempprop.csv')
+    savepropcsv()
     return
     
 def resetDF(event):
@@ -126,7 +128,7 @@ resetbutton = pn.widgets.Button(name='Reset')
 #downloadbutton = pn.widgets.Button(name='Download')
 propcsvname = pn.widgets.TextInput(value = 'properties.csv',name = 'Filename')
 
-downloadbutton = pn.widgets.FileDownload('tempprop.csv', filename=propcsvname.value,auto=True)
+downloadbutton = pn.widgets.FileDownload(tempdir.format('tempprop.csv'), filename=propcsvname.value,auto=False)
 
 ownersearch = pn.widgets.TextInput(value = '',name = 'Search by Owner')
 searchallownerscheck = pn.widgets.Checkbox(value = True,name = "search all owner columns")
@@ -168,7 +170,7 @@ propertytab = pn.Column(accordionrow,
 #
 def updatesummarytab(event):
     sum_df.value = groupOwners(df_widget.value)
-    sum_df.value.to_csv('tempcsv.csv')
+    sum_df.value.to_csv(tempdir.format('tempowners.csv'))
     return
     
 def groupOwners(inputdf):
@@ -197,7 +199,7 @@ grandtotalcheck = pn.widgets.Checkbox(value = False,name = 'Grand Total')
     
 #fileydown = pn.widgets.FileDownload(file='summarybyowner.csv', filename='summarybyowner.csv')
 byownercsvname = pn.widgets.TextInput(value = 'GroupByOwner.csv',name = 'Filename')
-downbutton = pn.widgets.FileDownload('tempcsv.csv', filename=byownercsvname.value,auto=True)
+downbutton = pn.widgets.FileDownload(tempdir.format('tempowners.csv'), filename=byownercsvname.value,auto=False)
 
 downloadcol = pn.Column(byownercsvname,downbutton)
 sumsearchcol = pn.Column(summarizebutton,showtotalscheck,grandtotalcheck)
@@ -254,14 +256,18 @@ def loadpoints(event):
                         fill_opacity=0.4,
                         color="black",
                         weight=1,drop=True
-                    ), 
-                    drop=True,style_function=lambda x: {"fillColor": "orange"})
-        folium.Popup(r["Location"]).add_to(geo_j)
+                        ), 
+                    drop = True,
+                    style_function=lambda x: {"fillColor": "orange"}
+                              )
+        r["Popup"] = "{0}, \n owneradd{1}".format(r["Location"],r["OwnerAdd"])
+        folium.Popup(r["Popup"]).add_to(geo_j)
+       # folium.Popup(r["OwnerAdd"]).add_to(geo_j)
         geo_j.add_to(n)
     #add newmap to folium pane
     folium_pane.object = n
     #save the html
-    folium_pane.object.save('map.html')
+    folium_pane.object.save(tempdir.format('map.html'))
 
     
 def getcoords(searchaddy, geodict):

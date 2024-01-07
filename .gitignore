@@ -1,0 +1,8 @@
+temp/
+scraped
+.i*
+.v*
+Untitled*
+__pyca*
+pickles/*.ipynb
+
