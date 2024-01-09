@@ -119,8 +119,8 @@ def resetDF(event):
     locationsearch.value = ''
     #ownertypeselect.value = ['all']
 
-df_widget = pn.widgets.Tabulator(df,frozen_columns=['Location'],show_index=False,width = 1000,
-                                 formatters=bokeh_formatters,widths = tablewidths,page_size = 20)
+df_widget = pn.widgets.Tabulator(df,show_index=False,width = 1000,
+                                 formatters=bokeh_formatters,widths = tablewidths,page_size = 20) #,frozen_columns=['Location']
 
 
 updatebutton = pn.widgets.Button(name='Update')
